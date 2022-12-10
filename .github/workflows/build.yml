@@ -1,0 +1,31 @@
+name: Archive projections
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron:  '47 1 * * *'
+  push:
+    branches:
+      - master
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v3.1.0
+      - name: jbang
+        continue-on-error: true
+        uses: jbangdev/jbang-action@v0.100.1
+        with:
+          jbangargs: --verbose
+          script: archivefg.java
+        env:
+          JBANG_REPO: /root/.jbang/repository
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Commit projections and push
+        uses: EndBug/add-and-commit@v7
+        with:
+          add: '202* --force'
+          default_author: github_actions
+          message: Automatically archive projections from this date

@@ -3,7 +3,7 @@ name: Archive projections
 on:
   workflow_dispatch:
   schedule:
-    - cron:  '47 1 * * *'
+    - cron:  '47 4 * * *'
   push:
     branches:
       - master

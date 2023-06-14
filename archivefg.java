@@ -7,8 +7,11 @@
 //import org.apache.log4j.BasicConfigurator;
 
 import com.gargoylesoftware.htmlunit.BrowserVersion;
+import com.gargoylesoftware.htmlunit.util.Cookie;
+import com.gargoylesoftware.htmlunit.CookieManager;
 import com.gargoylesoftware.htmlunit.Page;
 import com.gargoylesoftware.htmlunit.WebClient;
+import com.gargoylesoftware.htmlunit.DefaultCredentialsProvider;
 import com.gargoylesoftware.htmlunit.javascript.host.event.Event;
 import com.gargoylesoftware.htmlunit.html.DomElement;
 import com.gargoylesoftware.htmlunit.html.HtmlAnchor;
@@ -32,36 +35,88 @@ import java.time.format.DateTimeFormatter;
 import java.util.Date;
 import java.util.List;
 import java.util.Locale;
+import java.util.Set;
 
 public class archivefg {
-    public void postForm(String url, String fileName) throws Exception {
-        WebClient client = new WebClient(BrowserVersion.FIREFOX);
+
+    private WebClient client;
+    private CookieManager cookieManager;
+
+    public void initClient() {
+        client = new WebClient(BrowserVersion.FIREFOX);
+        client.getOptions().setJavaScriptEnabled(true);
         client.getOptions().setThrowExceptionOnScriptError(false);
+        cookieManager = new CookieManager();
+        cookieManager = client.getCookieManager();   
+        cookieManager.setCookiesEnabled(true);
+        client.setCookieManager(cookieManager);
+    }
+
+    public void loginForm() throws Exception {
+        String username = "tcunning";
+        String password = "3M8h5jeJrPGf";
+        // Set some example credentials
+
+        HtmlPage page = (HtmlPage) client.getPage("https://blogs.fangraphs.com/wp-login.php");
+        client.waitForBackgroundJavaScript(50000); 
+
+        HtmlDivision div = page.getHtmlElementById("login");
+        HtmlForm form = page.getForms().get(0);
+        form.getInputByName("log").setValueAttribute(username);  
+        form.getInputByName("pwd").setValueAttribute(password);  
+
+        page = form.getInputByValue("Sign In").click();
+    }
+
+    public void printCookies() {
+        System.out.println("PRINTING COOKIES");
+        Set<Cookie> cookies = cookieManager.getCookies();
+        for (Cookie cook : cookies) {
+            System.out.println("COOKIE " + cook.toString());
+        }
+        System.out.println("END PRINTING COOKIES");
+    }
+
+    public void postForm(String url, String fileName) throws Exception {
         HtmlPage page = client.getPage(url);
         client.waitForBackgroundJavaScript(50000); 
         System.out.println("------------------------------");
 
-        List<HtmlDivision> divs = page.getByXPath("//div[contains(@class, 'br_dby')]");
+        List<HtmlAnchor> anchs = page.getByXPath("//a[contains(@class, 'data-export')]");
+        for (HtmlAnchor anch : anchs) {
+            System.out.println("anch : " + anch);
+        }
+
+        List<HtmlDivision> divs = page.getByXPath("//div[contains(@class, 'projections-data')]");
         for (HtmlDivision div : divs) {
-            List<HtmlElement> anchors = div.getElementsByTagName("a");
-            for (DomElement anchor : anchors) {
-                HtmlAnchor leftyAnchor = (HtmlAnchor) anchor;
-                Page p = leftyAnchor.click();
 
-                File targetFile = new File(fileName);
-                FileOutputStream fos = new FileOutputStream(targetFile);
-                InputStream initialStream = p.getWebResponse().getContentAsStream();
-                byte[] buffer = new byte[8 * 1024];
-                int bytesRead;
-                while ((bytesRead = initialStream.read(buffer)) != -1) {
-                    fos.write(buffer, 0, bytesRead);
-                }
-                initialStream.close();
-                fos.flush();
-                fos.close();
+            div.removeChild("div", 0);
 
-                break;
+            HtmlElement element = (HtmlElement) page.createElement("a");
+            element.setAttribute("class", "data-export");
+            element.setAttribute("href", "data:application/csv;charset=utf-8,undefined");
+            element.setTextContent("Export Data");
+            HtmlAnchor anchor = (HtmlAnchor) element;
+            div.appendChild(anchor);
+
+            System.out.println(div.asXml());
+
+            Page p = anchor.click();
+
+            File targetFile = new File(fileName);
+            FileOutputStream fos = new FileOutputStream(targetFile);
+            InputStream initialStream = p.getWebResponse().getContentAsStream();
+            byte[] buffer = new byte[8 * 1024];
+            int bytesRead;
+            while ((bytesRead = initialStream.read(buffer)) != -1) {
+                fos.write(buffer, 0, bytesRead);
             }
+            initialStream.close();
+            fos.flush();
+            fos.close();
+
+            break;
+
         }
     }
 
@@ -126,16 +181,26 @@ public class archivefg {
 
         archivefg fg = new archivefg();
 
+        fg.initClient();
+        fg.printCookies();
+        fg.loginForm();
+        fg.printCookies();
+
         // Check whether file exists already
         File offFile = new File(offense);
         if (!offFile.exists()) {
-            fg.postForm("https://www.fangraphs.com/projections.aspx?pos=all&stats=bat&type=steamer", offense);
+            fg.postForm("https://www.fangraphs.com/projections?pos=all&stats=bat&type=steamer", offense);
         }
+
+        /* 
         File pitchingFile = new File(pitching);
         if (!pitchingFile.exists()) {
             fg.postForm("https://www.fangraphs.com/projections.aspx?pos=all&stats=pit&type=steamer&team=0&lg=all&players=0", pitching);
         }
         fg.filterForProspects(offense);
         fg.filterForProspects(pitching);
+
+
+        */
     }
 }

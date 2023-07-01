@@ -35,8 +35,10 @@ class fangraphsdownloader implements Callable<Integer> {
 
     private WebDriver webdriver;
     private Properties props;
+
     private Properties reports;
     private Properties projections;
+    private Properties minors;
 
     public fangraphsdownloader() {
         super();
@@ -87,6 +89,16 @@ class fangraphsdownloader implements Callable<Integer> {
             projections = new Properties();
             // load a properties file
             projections.load(input);
+
+        } catch (IOException ex) {
+            throw ex;
+        }
+
+        try (InputStream input = new FileInputStream("minors.properties")) {
+
+            minors = new Properties();
+            // load a properties file
+            minors.load(input);
 
         } catch (IOException ex) {
             throw ex;
@@ -192,6 +204,38 @@ class fangraphsdownloader implements Callable<Integer> {
             button.click(); 
             
             File downloadedLeaderBoard = new File("data/fangraphs-leaderboard-projections.csv");
+            FluentWait<WebDriver> wait = new FluentWait<WebDriver>(webdriver).withTimeout(Duration.ofSeconds(25)).pollingEvery(Duration.ofMillis(100));
+            wait.until(x -> downloadedLeaderBoard.exists());
+            File newReport = new File("data", name);
+            downloadedLeaderBoard.renameTo(newReport);
+        }
+
+        // Download minors ...
+        for (String name : minors.stringPropertyNames()) {
+            String reportUrl = (String) minors.get(name);
+            System.out.println("minors name : " + name + " url=" + reportUrl);
+
+            webdriver.get(reportUrl);
+
+            // Wait until the element to download is available and then stop loading
+            // Fangraphs has ads that cause the page to appear to continue loading
+            WebElement secondResult = new WebDriverWait(webdriver, Duration.ofSeconds(10))
+              .until(ExpectedConditions.elementToBeClickable(By.id("footer")));
+        
+            // Click the Export Data button
+            // Scrolling down the page helps get to the file more reliably
+            JavascriptExecutor js = (JavascriptExecutor) webdriver;
+            js.executeScript("window.scrollTo(0, 200)");
+
+            WebElement exportResult = new WebDriverWait(webdriver, Duration.ofSeconds(10))
+              .until(ExpectedConditions.elementToBeClickable(By.className("data-export")));
+
+            Thread.sleep(3000);
+
+            WebElement button = webdriver.findElement(By.className("data-export"));
+            button.click(); 
+            
+            File downloadedLeaderBoard = new File("data/fangraphs-minor-league-leaders.csv");
             FluentWait<WebDriver> wait = new FluentWait<WebDriver>(webdriver).withTimeout(Duration.ofSeconds(25)).pollingEvery(Duration.ofMillis(100));
             wait.until(x -> downloadedLeaderBoard.exists());
             File newReport = new File("data", name);

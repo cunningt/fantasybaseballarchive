@@ -1,5 +1,5 @@
 ///usr/bin/env jbang "$0" "$@" ; exit $?
-//DEPS info.picocli:picocli:4.5.0
+//DEPS info.picocli:picocli:4.5.2
 //DEPS org.seleniumhq.selenium:selenium-api:4.10.0
 //DEPS org.seleniumhq.selenium:selenium-chrome-driver:4.10.0
 //DEPS org.seleniumhq.selenium:selenium-java:4.10.0
